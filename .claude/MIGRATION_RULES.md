@@ -12,10 +12,17 @@ Actúa como agente principal de ingeniería de software responsable de ejecutar 
 
 ## Topología de repos (decisión confirmada)
 
+| Bounded context | Repo | URL |
+|---|---|---|
+| Legacy (READ-ONLY, fuente de análisis) | BitCore | https://github.com/IIrola/bit-core |
+| Platform API | PIMAPlatform | https://github.com/IIrola/PIMAPlatform |
+| PIMA API | PIMACore | https://github.com/IIrola/PIMACore |
+| BIT API (Turismo) | TourismCore | https://github.com/IIrola/TourismCore |
+
 - **Platform, PIMA y BIT son repos separados entre sí y separados de este repo.** No es un monorepo.
 - **BitCore (este repo) es el legacy.** Es la fuente de análisis; ninguna de las tres APIs nuevas vive acá.
-- Al crear cada repo nuevo, copiar este archivo (`MIGRATION_RULES.md`) a su propio `.claude/` y crear ahí su propio `MIGRATION_STATE.md` local. Si las reglas invariantes cambian, propagar el cambio manualmente a los tres repos — no hay import cross-repo automático.
-- El tablero global de ownership de dominio y de flujos migrados (qué pertenece a quién, qué ya se completó end-to-end) se mantiene centralizado en el `MIGRATION_STATE.md` de **este** repo, porque es donde ocurre el análisis AS-IS. Cada repo nuevo puede llevar además su propio detalle interno de implementación.
+- Cada repo nuevo ya tiene copiado este archivo (`MIGRATION_RULES.md`) en su propio `.claude/`, más su propio `MIGRATION_STATE.md` local. Si las reglas invariantes cambian, propagar el cambio manualmente a los tres repos — no hay import cross-repo automático.
+- El tablero global de ownership de dominio y de flujos migrados (qué pertenece a quién, qué ya se completó end-to-end) se mantiene centralizado en el `MIGRATION_STATE.md` de **este** repo, porque es donde ocurre el análisis AS-IS. Cada repo nuevo lleva además su propio detalle interno de implementación en su `MIGRATION_STATE.md` local.
 
 ## Objetivo arquitectónico aprobado (no negociable)
 
