@@ -1,0 +1,53 @@
+## .NET
+bin/
+obj/
+out/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+.vscode/
+*.dbmdl
+*.dbproj.schemaview
+*.pfx
+*.publishsettings
+
+## Rider / VS
+.idea/
+*.DotSettings.user
+
+## Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+
+## Secrets / local config
+appsettings.Development.json
+appsettings.*.local.json
+secrets.json
+*.env
+.env
+
+## OS
+.DS_Store
+Thumbs.db
