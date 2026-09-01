@@ -20,7 +20,7 @@ public class BadgeAssessmentTests
     private static TourismOrganizationProfile Operator(DateTime? lastProofOfLife = null)
     {
         var profile = TourismOrganizationProfile.Create(
-            Guid.NewGuid(), TourismProfileType.Operator, "tour-guide", Now.AddYears(-3));
+            Guid.NewGuid(), Guid.NewGuid(), TourismProfileType.Operator, "tour-guide", Now.AddYears(-3));
         if (lastProofOfLife.HasValue)
             profile.RecordProofOfLife(lastProofOfLife.Value);
         return profile;

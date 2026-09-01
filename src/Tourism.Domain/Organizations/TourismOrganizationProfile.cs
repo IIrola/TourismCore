@@ -1,3 +1,4 @@
+using Tourism.Domain.Badges;
 using Tourism.Domain.Common;
 
 namespace Tourism.Domain.Organizations;
@@ -20,6 +21,22 @@ public sealed class TourismOrganizationProfile
     /// <summary>Platform's organization. Opaque: never resolved from here.</summary>
     public Guid OrganizationId { get; private set; }
 
+    /// <summary>
+    /// Platform tenant that owns <see cref="OrganizationId"/>, captured when the organization
+    /// joined this business line.
+    ///
+    /// This is a copy of a Platform fact, which normally invites drift — but not here: an
+    /// organization's tenant is assigned when it is created and Platform exposes no way to
+    /// change it, so the value cannot go stale. It is stored because isolation checks need it
+    /// on every request, and asking Platform each time would put it on the critical path of
+    /// every read.
+    ///
+    /// If Platform ever gains the ability to move an organization between tenants, this
+    /// snapshot silently becomes wrong and the isolation check with it. Whoever adds that
+    /// capability has to revisit this field.
+    /// </summary>
+    public Guid TenantId { get; private set; }
+
     public TourismProfileType ProfileType { get; private set; }
 
     /// <summary>Category from the tourism catalogue, e.g. "tour guide", "travel insurer".</summary>
@@ -37,21 +54,41 @@ public sealed class TourismOrganizationProfile
     /// </summary>
     public DateTime? LastProofOfLifeAtUtc { get; private set; }
 
+    /// <summary>Badge last decided for this operator, or null before the first assessment.</summary>
+    public TourismBadge? CurrentBadge { get; private set; }
+
+    public DateTime? BadgeAssessedAtUtc { get; private set; }
+
+    /// <summary>The identity evaluation the current badge was decided from. Opaque: PIMA's id.</summary>
+    public Guid? LastEvaluationId { get; private set; }
+
+    /// <summary>
+    /// Why the current badge is what it is, stored alongside it.
+    ///
+    /// A badge kept without its reasons cannot answer the one question an operator will
+    /// actually ask. The legacy's shield was a number on a row with no record of how it got
+    /// there, which left support with nothing to say.
+    /// </summary>
+    public string? BadgeReasons { get; private set; }
+
     private TourismOrganizationProfile() { }
 
     public static TourismOrganizationProfile Create(
         Guid organizationId,
+        Guid tenantId,
         TourismProfileType profileType,
         string categoryCode,
         DateTime nowUtc)
     {
         DomainException.ThrowIfEmpty(organizationId, nameof(organizationId));
+        DomainException.ThrowIfEmpty(tenantId, nameof(tenantId));
         DomainException.ThrowIfNullOrWhiteSpace(categoryCode, nameof(categoryCode));
 
         return new TourismOrganizationProfile
         {
             Id = Guid.NewGuid(),
             OrganizationId = organizationId,
+            TenantId = tenantId,
             ProfileType = profileType,
             CategoryCode = categoryCode.Trim().ToLowerInvariant(),
             RegisteredAtUtc = nowUtc
@@ -66,6 +103,20 @@ public sealed class TourismOrganizationProfile
     }
 
     public void RecordProofOfLife(DateTime nowUtc) => LastProofOfLifeAtUtc = nowUtc;
+
+    /// <summary>
+    /// Stores the outcome of a badge assessment, so the directory can render a listing
+    /// without asking the identity engine on every page view.
+    /// </summary>
+    public void RecordBadge(BadgeDecision decision, Guid evaluationId, DateTime nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(decision);
+
+        CurrentBadge = decision.Badge;
+        BadgeAssessedAtUtc = nowUtc;
+        LastEvaluationId = evaluationId;
+        BadgeReasons = string.Join(" ", decision.Reasons);
+    }
 
     /// <summary>How long since the operator last showed signs of trading, if ever.</summary>
     public TimeSpan? TimeSinceProofOfLife(DateTime nowUtc)
