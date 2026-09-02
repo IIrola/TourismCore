@@ -37,9 +37,12 @@ Estructura: `Api → Infrastructure → Application → Domain`, misma forma que
 
 ## Flujos migrados a este repo (end-to-end)
 
-_(ninguno todavía — está la regla de decisión, falta la orquestación con PIMA y la superficie de API)_
+- **Evaluación de insignia**: usuario entra a Platform → llama a BIT con su token de usuario → BIT pide un token de servicio a Platform → llama a PIMA → PIMA evalúa y devuelve hechos crudos → BIT decide la insignia y la registra con sus razones.
+- Alta de perfil turístico, registro de prueba de vida, y lectura de la insignia vigente.
 
 ## Verificación
 
 - `dotnet build Tourism.sln` — correcto, **0 warnings**
-- `dotnet test Tourism.sln` — **24/24 en verde**
+- `dotnet test Tourism.sln` — **68/68 en verde** (24 dominio, 27 aplicación, 17 infraestructura)
+- `dotnet ef migrations has-pending-model-changes` — sin cambios pendientes
+- **Verificado end-to-end con los tres servicios corriendo** contra MariaDB 11.4: el flujo completo devolvió insignia Bronce con score 750 y cobertura 30% — retenida por cobertura aunque el puntaje alcanzaba Plata, con ambas razones en la respuesta. El `correlationId` sobrevivió el salto a PIMA. Negativos: token de usuario presentado a PIMA → 401 por audiencia; usuario de otra organización → 403; **PIMA realmente caído → 503 y la insignia anterior intacta con sus razones**.
