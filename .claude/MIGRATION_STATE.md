@@ -14,8 +14,9 @@ Estructura: `Api → Infrastructure → Application → Domain`, misma forma que
 | `TourismProfileType` | ✅ | Turista / Operador, recuperado del legacy |
 | `TourismBadge` + `BadgeAssessment` | ✅ | La decisión turística, como función pura |
 | `IdentityAssessment` | ✅ | Forma propia de BIT del resultado de PIMA |
-| Aplicación (orquestación con PIMA) | ⬜ | |
-| Persistencia, API, cliente HTTP a PIMA | ⬜ | |
+| Aplicación (orquestación con PIMA, onboarding) | ✅ | |
+| Persistencia, API, cliente HTTP a PIMA | ✅ | |
+| Catálogo de categorías turísticas | ✅ | Con la regla tipo↔categoría |
 
 ## Decisiones locales de implementación
 
@@ -46,3 +47,30 @@ Estructura: `Api → Infrastructure → Application → Domain`, misma forma que
 - `dotnet test Tourism.sln` — **68/68 en verde** (24 dominio, 27 aplicación, 17 infraestructura)
 - `dotnet ef migrations has-pending-model-changes` — sin cambios pendientes
 - **Verificado end-to-end con los tres servicios corriendo** contra MariaDB 11.4: el flujo completo devolvió insignia Bronce con score 750 y cobertura 30% — retenida por cobertura aunque el puntaje alcanzaba Plata, con ambas razones en la respuesta. El `correlationId` sobrevivió el salto a PIMA. Negativos: token de usuario presentado a PIMA → 401 por audiencia; usuario de otra organización → 403; **PIMA realmente caído → 503 y la insignia anterior intacta con sus razones**.
+
+---
+
+## Iteración 2 — onboarding turístico
+
+`RegisterTourismProfileCommand` fue reemplazado por `OnboardOrganizationCommand`. No es un renombre: cierra la debilidad que el comando anterior tenía que admitir en su propia documentación.
+
+### Lo que cambió y por qué
+
+- **El tenant y la organización salen del token, no del request.** El comando anterior aceptaba un `TenantId` en el cuerpo porque no existía todavía un dueño almacenado contra el que comparar. Platform ahora emite tokens con scope de participación, y no emite uno para una participación retirada, una organización archivada o un tenant suspendido — así que el claim es una garantía *más fuerte* que cualquier consulta que BIT pudiera hacer, y se revalida en cada emisión y cada refresh. El request sigue nombrando la organización para que un desajuste se rechace en voz alta en vez de resolverse en silencio a lo que dijera el token.
+
+- **El onboarding exige prueba de participación.** `ActsInTourismFor(organizationId)` compara el claim `org` con la organización pedida y el claim `bl` con `tourism`. Sin eso, BIT crearía una ficha turística para una empresa que nunca entró a la línea de negocio — exactamente la confusión entre "tiene cuenta" y "opera en turismo" que este corte existe para deshacer. Un token de participación de otra vertical no pasa.
+
+- **`TourismScopeType` reconoce `BusinessLine`.** Estaba deliberadamente ausente mientras Platform no podía emitir ese token, con el argumento de que el enum no debía crecer casos que nadie leyera. Ahora es el scope que más importa acá, y un llamador de otra línea de negocio se reconoce y se rechaza en vez de tratarse como "sin scope".
+
+- **El catálogo de categorías turísticas vive en BIT** (`TourismCategories`), con la regla tipo↔categoría que el legacy validaba **solo en uno de sus dos caminos**: su alta anónima guardaba el entero que llegara, incluido el `0`, que no existe en ningún catálogo. Acá hay una sola regla y todos los caminos pasan por ella. Las categorías se direccionan por código estable en vez de por id entero sembrado por una migración — el legacy incrustaba ese id dentro del identificador público, que es por lo que no podía reemitirse sin romper filas.
+
+- **La primera evaluación se delega, no se reimplementa.** El onboarding manda `AssessOperatorBadgeCommand`: una sola implementación posee la orquestación con PIMA. Repetirla acá es como empiezan a divergir dos versiones de la misma decisión.
+
+- **Un fallo de la evaluación no deshace el onboarding.** La organización entró a turismo de todas formas; rechazar el alta completa porque el motor de identidad parpadeó desharía trabajo que ya salió bien. La ficha queda sin insignia, con una nota que dice por qué — y "sin contactos que evaluar" y "el motor no respondió" son notas distintas, porque colapsarlas en un campo vacío es lo que dejaba al legacy sin poder distinguir una ficha sin revisar de una reprobada.
+
+## Verificación — Iteración 2
+
+- `dotnet build Tourism.sln` — correcto, **0 warnings**
+- `dotnet test Tourism.sln` — **80/80 en verde** (24 dominio, 39 aplicación, 17 infraestructura)
+- `dotnet ef migrations has-pending-model-changes` — sin cambios pendientes
+- El contrato con Platform (los claims `org` y `bl`) está verificado del lado emisor sobre HTTP real: un token con scope de participación sale con `sco=businessline`, `sid`, `tnt`, `org` y `bl=tourism`. Del lado de BIT está cubierto por pruebas sobre el puerto, no por una corrida de los tres servicios en esta iteración.

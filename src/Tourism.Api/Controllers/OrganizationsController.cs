@@ -5,6 +5,7 @@ using Tourism.Application.Badges.Commands;
 using Tourism.Application.Badges.DTOs;
 using Tourism.Application.Identity.Ports;
 using Tourism.Application.Organizations.Commands;
+using Tourism.Application.Organizations.DTOs;
 using Tourism.Application.Organizations.Queries;
 using Tourism.Domain.Organizations;
 
@@ -20,18 +21,37 @@ namespace Tourism.Api.Controllers;
 [Route("api/v1/organizations/{organizationId:guid}")]
 public sealed class OrganizationsController(IMediator mediator) : ApiControllerBase
 {
+    /// <summary>
+    /// Onboards an organization into tourism: classifies it and decides its first badge.
+    ///
+    /// Requires a token scoped to this organization's tourism participation — that is the
+    /// proof the organization actually joined the business line, and it is where the tenant
+    /// comes from, so neither can be asserted by the request.
+    /// </summary>
     [HttpPost("tourism-profile")]
-    [ProducesResponseType(typeof(CurrentBadgeResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(OnboardingResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> RegisterTourismProfile(
-        Guid organizationId, [FromBody] RegisterTourismProfileRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Onboard(
+        Guid organizationId, [FromBody] OnboardOrganizationRequest request, CancellationToken cancellationToken)
         => FromResult(
             await mediator.Send(
-                new RegisterTourismProfileCommand(request.TenantId, organizationId, request.ProfileType, request.CategoryCode),
+                new OnboardOrganizationCommand(
+                    organizationId,
+                    request.ProfileType,
+                    request.CategoryCode,
+                    request.CorrelationId,
+                    request.Contacts,
+                    request.AssertedPossession),
                 cancellationToken),
             response => CreatedAtAction(nameof(GetBadge), new { organizationId }, response));
+
+    /// <summary>The tourism catalogue a participant can be classified under.</summary>
+    [HttpGet("/api/v1/tourism-categories")]
+    [ProducesResponseType(typeof(IReadOnlyList<TourismCategory>), StatusCodes.Status200OK)]
+    public IActionResult Categories([FromQuery] TourismProfileType? profileType)
+        => Ok(profileType is { } type ? TourismCategories.For(type) : TourismCategories.All);
 
     [HttpPost("proof-of-life")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -67,8 +87,16 @@ public sealed class OrganizationsController(IMediator mediator) : ApiControllerB
         => FromResult(await mediator.Send(new GetCurrentBadgeQuery(organizationId), cancellationToken));
 }
 
-/// <summary><see cref="RegisterTourismProfileCommand"/>'s body — OrganizationId comes from the route.</summary>
-public sealed record RegisterTourismProfileRequest(Guid TenantId, TourismProfileType ProfileType, string CategoryCode);
+/// <summary>
+/// <see cref="OnboardOrganizationCommand"/>'s body — the organization comes from the route, and
+/// the tenant from the token rather than from either.
+/// </summary>
+public sealed record OnboardOrganizationRequest(
+    TourismProfileType ProfileType,
+    string CategoryCode,
+    string CorrelationId,
+    IReadOnlyList<EvaluationContact> Contacts,
+    IReadOnlyList<AssertedPossession>? AssertedPossession = null);
 
 /// <summary><see cref="AssessOperatorBadgeCommand"/>'s body — OrganizationId comes from the route.</summary>
 public sealed record AssessOperatorBadgeRequest(

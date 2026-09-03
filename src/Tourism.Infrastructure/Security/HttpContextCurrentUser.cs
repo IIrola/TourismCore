@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Tourism.Application.Common.Ports;
+using Tourism.Domain.Organizations;
 
 namespace Tourism.Infrastructure.Security;
 
@@ -50,10 +51,10 @@ public sealed class HttpContextCurrentUser(IHttpContextAccessor httpContextAcces
                 "platform" => TourismScopeType.Platform,
                 "tenant" => TourismScopeType.Tenant,
                 "organization" => TourismScopeType.Organization,
-                // Includes "businessline" (Platform issues it for other verticals) and any
-                // value this API does not recognize. Failing closed here, not throwing, keeps
-                // a token BIT cannot fully interpret from crashing an otherwise-authenticated
-                // request; it simply carries no scope BIT can act on.
+                "businessline" => TourismScopeType.BusinessLine,
+                // Any value this API does not recognize. Failing closed here, not throwing,
+                // keeps a token BIT cannot fully interpret from crashing an otherwise
+                // authenticated request; it simply carries no scope BIT can act on.
                 _ => null
             };
         }
@@ -62,6 +63,12 @@ public sealed class HttpContextCurrentUser(IHttpContextAccessor httpContextAcces
     public Guid? ScopeId
         => IsAuthenticated && Guid.TryParse(Principal!.FindFirstValue("sid"), out var id) ? id : null;
 
+    public string? BusinessLineCode
+        => IsAuthenticated ? Principal!.FindFirstValue("bl") : null;
+
+    public Guid? OrganizationId
+        => IsAuthenticated && Guid.TryParse(Principal!.FindFirstValue("org"), out var id) ? id : null;
+
     public bool CanActOnOrganization(Guid organizationId, Guid owningTenantId)
         => ScopeType switch
         {
@@ -69,6 +76,14 @@ public sealed class HttpContextCurrentUser(IHttpContextAccessor httpContextAcces
             TourismScopeType.Platform => true,
             TourismScopeType.Tenant => ScopeId == owningTenantId,
             TourismScopeType.Organization => ScopeId == organizationId,
+            // A tourism participation reaches the tourism side of its own organization, and
+            // nothing else. A participation in another vertical reaches nothing here.
+            TourismScopeType.BusinessLine => ActsInTourismFor(organizationId),
             _ => false
         };
+
+    public bool ActsInTourismFor(Guid organizationId)
+        => ScopeType == TourismScopeType.BusinessLine
+           && OrganizationId == organizationId
+           && string.Equals(BusinessLineCode, TourismBusinessLine.Code, StringComparison.OrdinalIgnoreCase);
 }

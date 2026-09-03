@@ -1,16 +1,20 @@
 namespace Tourism.Application.Common.Ports;
 
 /// <summary>
-/// The scope a Platform-issued access token acts in — mirrors the "sco" claim's three
-/// values. There is deliberately no BusinessLine case here: Tourism only ever needs to know
-/// whether a caller acts platform-wide, for one tenant, or for one organization, and the
-/// enum should not grow cases nothing here reads.
+/// The scope a Platform-issued access token acts in — mirrors the "sco" claim.
+///
+/// <see cref="BusinessLine"/> was deliberately absent while Platform could not issue such a
+/// token; now that it can, it is the scope that matters most here. It says the caller is
+/// acting inside one organization's participation in one vertical, and the accompanying "bl"
+/// claim says which vertical — so a caller acting in some other business line is recognized
+/// and refused rather than silently treated as having no scope at all.
 /// </summary>
 public enum TourismScopeType
 {
     Platform,
     Tenant,
-    Organization
+    Organization,
+    BusinessLine
 }
 
 /// <summary>
@@ -52,4 +56,31 @@ public interface ICurrentUser
     /// organization.
     /// </summary>
     bool CanActOnOrganization(Guid organizationId, Guid owningTenantId);
+
+    /// <summary>
+    /// The "bl" claim — which business line the caller is acting in, when the scope is a
+    /// participation. Null otherwise.
+    /// </summary>
+    string? BusinessLineCode { get; }
+
+    /// <summary>
+    /// The "org" claim — the organization holding the participation the caller is scoped to.
+    /// Null for every other scope, where the organization is named by <see cref="ScopeId"/>
+    /// or not named at all.
+    /// </summary>
+    Guid? OrganizationId { get; }
+
+    /// <summary>
+    /// True when the caller is acting specifically in this organization's tourism
+    /// participation.
+    ///
+    /// Distinct from <see cref="CanActOnOrganization"/>, which asks whether the caller reaches
+    /// the company at all. This asks a narrower question: is the caller here <i>as tourism</i>?
+    /// That is what proves the organization actually took part in this business line, without
+    /// BIT having to ask Platform — Platform refuses to issue such a token for a withdrawn
+    /// participation, an archived organization or a suspended tenant, so the claim is a
+    /// stronger guarantee than a lookup BIT could make on its own, and it is re-checked every
+    /// time a token is issued or refreshed.
+    /// </summary>
+    bool ActsInTourismFor(Guid organizationId);
 }
