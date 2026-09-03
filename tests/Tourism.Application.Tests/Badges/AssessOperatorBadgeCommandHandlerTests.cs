@@ -23,6 +23,7 @@ public class AssessOperatorBadgeCommandHandlerTests
     private readonly ITourismOrganizationProfileRepository _profiles =
         Substitute.For<ITourismOrganizationProfileRepository>();
     private readonly IIdentityEvaluationClient _identity = Substitute.For<IIdentityEvaluationClient>();
+    private readonly IPossessionClient _possession = Substitute.For<IPossessionClient>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly IClock _clock = Substitute.For<IClock>();
     private readonly ICurrentUser _currentUser = Substitute.For<ICurrentUser>();
@@ -43,10 +44,15 @@ public class AssessOperatorBadgeCommandHandlerTests
         // Authorized by default: most of these tests are about the badge decision itself,
         // not about scope. The rejection cases below override this explicitly.
         _currentUser.CanActOnOrganization(Arg.Any<Guid>(), Arg.Any<Guid>()).Returns(true);
+
+        // Platform vouches for nothing by default, so each test states the possession it
+        // actually exercises.
+        _possession.GetConfirmedAsync(Arg.Any<IReadOnlyList<EvaluationContact>>(), Arg.Any<CancellationToken>())
+            .Returns(Result<IReadOnlyList<ConfirmedContact>>.Ok([]));
     }
 
     private AssessOperatorBadgeCommandHandler Handler()
-        => new(_profiles, _identity, _unitOfWork, _clock, _currentUser);
+        => new(_profiles, _identity, _possession, _unitOfWork, _clock, _currentUser);
 
     private TourismOrganizationProfile GivenRegisteredOperator(DateTime? proofOfLife = null)
     {
@@ -211,6 +217,82 @@ public class AssessOperatorBadgeCommandHandlerTests
 
         result.Value!.EvaluationId.Should().NotBeEmpty();
         result.Value.IdentityScore.Should().Be(900);
+    }
+
+    // ---------- possession is asked for, never taken from the caller ----------
+
+    [Fact]
+    public async Task What_Platform_vouches_for_is_forwarded_to_the_engine()
+    {
+        // It used to be a field on the request. That made the heaviest single input to an
+        // identity score something the caller wrote about themselves.
+        GivenRegisteredOperator();
+        GivenIdentityAnswers(900);
+        _possession.GetConfirmedAsync(Arg.Any<IReadOnlyList<EvaluationContact>>(), Arg.Any<CancellationToken>())
+            .Returns(Result<IReadOnlyList<ConfirmedContact>>.Ok(
+                [new ConfirmedContact(EvaluationChannel.Email, "operator@example.com", Now.AddDays(-3))]));
+
+        IdentityEvaluationRequest? sent = null;
+        await _identity.EvaluateAsync(
+            Arg.Do<IdentityEvaluationRequest>(r => sent = r), Arg.Any<CancellationToken>());
+
+        await Handler().Handle(Command(), CancellationToken.None);
+
+        var asserted = sent!.AssertedPossession.Should().ContainSingle().Subject;
+        asserted.Value.Should().Be("operator@example.com");
+        asserted.LastConfirmedAtUtc.Should().Be(Now.AddDays(-3));
+    }
+
+    [Fact]
+    public async Task Each_confirmed_contact_counts_once()
+    {
+        // Platform records that a contact was proven and when, not how many times somebody
+        // re-proved it. Claiming more would inflate a dimension that saturates on repeats.
+        GivenRegisteredOperator();
+        GivenIdentityAnswers(900);
+        _possession.GetConfirmedAsync(Arg.Any<IReadOnlyList<EvaluationContact>>(), Arg.Any<CancellationToken>())
+            .Returns(Result<IReadOnlyList<ConfirmedContact>>.Ok(
+                [new ConfirmedContact(EvaluationChannel.Email, "operator@example.com", Now)]));
+
+        IdentityEvaluationRequest? sent = null;
+        await _identity.EvaluateAsync(
+            Arg.Do<IdentityEvaluationRequest>(r => sent = r), Arg.Any<CancellationToken>());
+
+        await Handler().Handle(Command(), CancellationToken.None);
+
+        sent!.AssertedPossession!.Single().ConfirmedCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task An_unreachable_Platform_lowers_the_evidence_rather_than_stopping_the_assessment()
+    {
+        // The score then rests on less and says so through its coverage, which is truthful.
+        // Refusing outright would let one dependency stop a listing being assessed at all, and
+        // asserting possession nobody confirmed would be worse than either.
+        GivenRegisteredOperator();
+        GivenIdentityAnswers(900);
+        _possession.GetConfirmedAsync(Arg.Any<IReadOnlyList<EvaluationContact>>(), Arg.Any<CancellationToken>())
+            .Returns(Result<IReadOnlyList<ConfirmedContact>>.Fail(
+                TourismErrorCodes.PlatformUnavailable, "Connection refused."));
+
+        IdentityEvaluationRequest? sent = null;
+        await _identity.EvaluateAsync(
+            Arg.Do<IdentityEvaluationRequest>(r => sent = r), Arg.Any<CancellationToken>());
+
+        var result = await Handler().Handle(Command(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        sent!.AssertedPossession.Should().BeNull("nothing was confirmed, so nothing is claimed");
+    }
+
+    [Fact]
+    public async Task The_command_has_no_possession_field_for_a_caller_to_fill_in()
+    {
+        typeof(AssessOperatorBadgeCommand).GetProperties()
+            .Select(p => p.Name)
+            .Should().NotContain(n => n.Contains("Possession"));
+
+        await Task.CompletedTask;
     }
 
     // ---------- scope: a caller may not act on an organization that is not theirs ----------

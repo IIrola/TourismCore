@@ -74,3 +74,23 @@ Estructura: `Api → Infrastructure → Application → Domain`, misma forma que
 - `dotnet test Tourism.sln` — **80/80 en verde** (24 dominio, 39 aplicación, 17 infraestructura)
 - `dotnet ef migrations has-pending-model-changes` — sin cambios pendientes
 - El contrato con Platform (los claims `org` y `bl`) está verificado del lado emisor sobre HTTP real: un token con scope de participación sale con `sco=businessline`, `sid`, `tnt`, `org` y `bl=tourism`. Del lado de BIT está cubierto por pruebas sobre el puerto, no por una corrida de los tres servicios en esta iteración.
+
+---
+
+## Iteración 4 — la posesión se pregunta, no se acepta
+
+`AssessOperatorBadgeCommand` ya no tiene campo de posesión. Lo tenía, y eso significaba que el insumo más pesado de un score de identidad —el 30%— era lo que quien llamaba escribiera sobre sí mismo, sin nada en posición de contradecirlo. Ahora se le pregunta a Platform, que es el único servicio que puede decir si alguien probó controlar un contacto.
+
+- **`IPossessionClient` es la segunda dirección de tráfico servicio-a-servicio de BIT.** Hasta acá solo le pedía un token a Platform; ahora también le hace una pregunta, y eso necesita una audiencia propia (`PimaPlatform.Services`), concedida por separado de la de PIMA. Poder evaluar una identidad nunca implicó poder leer lo que Platform sabe de un contacto.
+
+- **Si Platform no responde, la evaluación sigue sin posesión.** El score descansa sobre menos evidencia y lo dice por su cobertura, que es honesto. Rechazar la evaluación entera dejaría que una dependencia caída impidiera evaluar una ficha; afirmar una posesión que nadie confirmó sería peor que las dos.
+
+- **Cada contacto confirmado cuenta una vez.** Platform sabe que se probó y cuándo, no cuántas veces se volvió a probar. Afirmar más inflaría una dimensión que satura con las repeticiones.
+
+El cliente HTTP tiene su propio typed client en vez de compartir el de emisión de tokens: una consulta de posesión lenta no puede demorar la emisión del token, de la que dependen todas las demás llamadas.
+
+## Verificación — Iteración 4
+
+- `dotnet build Tourism.sln` — correcto, **0 warnings**
+- `dotnet test Tourism.sln` — **84/84 en verde** (24 dominio, 43 aplicación, 17 infraestructura)
+- El lado emisor del contrato quedó verificado sobre HTTP real en Platform: un token de servicio con la audiencia de Platform recibe los hechos avalados, uno con la audiencia de PIMA recibe 401, y un token de usuario también. El lado de BIT está cubierto por pruebas sobre el puerto, no por una corrida de los tres servicios en esta iteración.

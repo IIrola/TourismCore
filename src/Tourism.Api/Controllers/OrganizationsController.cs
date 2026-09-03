@@ -42,8 +42,7 @@ public sealed class OrganizationsController(IMediator mediator) : ApiControllerB
                     request.ProfileType,
                     request.CategoryCode,
                     request.CorrelationId,
-                    request.Contacts,
-                    request.AssertedPossession),
+                    request.Contacts),
                 cancellationToken),
             response => CreatedAtAction(nameof(GetBadge), new { organizationId }, response));
 
@@ -75,7 +74,6 @@ public sealed class OrganizationsController(IMediator mediator) : ApiControllerB
                     organizationId,
                     request.CorrelationId,
                     request.Contacts,
-                    request.AssertedPossession,
                     request.RequestedByUserId),
                 cancellationToken));
 
@@ -95,13 +93,15 @@ public sealed record OnboardOrganizationRequest(
     TourismProfileType ProfileType,
     string CategoryCode,
     string CorrelationId,
-    IReadOnlyList<EvaluationContact> Contacts,
-    IReadOnlyList<AssertedPossession>? AssertedPossession = null);
+    IReadOnlyList<EvaluationContact> Contacts);
 
 /// <summary><see cref="AssessOperatorBadgeCommand"/>'s body — OrganizationId comes from the route.</summary>
+/// <remarks>
+/// No possession field. It used to be one, and a caller filling it in awarded themselves the
+/// heaviest input to an identity score; BIT now asks Platform instead.
+/// </remarks>
 public sealed record AssessOperatorBadgeRequest(
     Guid TenantId,
     string CorrelationId,
     IReadOnlyList<EvaluationContact> Contacts,
-    IReadOnlyList<AssertedPossession>? AssertedPossession = null,
     Guid? RequestedByUserId = null);

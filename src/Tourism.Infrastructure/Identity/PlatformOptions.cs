@@ -22,4 +22,11 @@ public sealed class PlatformOptions
     /// variable or user-secrets so it never lands in source control.
     /// </summary>
     public string ClientSecret { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The audience BIT asks for when it needs to call Platform rather than be authenticated
+    /// by it. Granted to this client separately from PIMA's: being allowed to evaluate an
+    /// identity never implied being allowed to read what Platform knows about a contact.
+    /// </summary>
+    public string ServiceAudience { get; set; } = "PimaPlatform.Services";
 }

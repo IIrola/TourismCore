@@ -98,6 +98,16 @@ public static class DependencyInjection
         });
 
         services.AddSingleton<IServiceTokenProvider, PlatformServiceTokenProvider>();
+
+        // The other direction: BIT asking Platform a question rather than being authenticated
+        // by it. Its own typed client so a slow possession lookup cannot hold up token
+        // issuance, which every other call depends on.
+        services.AddHttpClient<IPossessionClient, HttpPossessionClient>((sp, client) =>
+        {
+            var platformOptions = sp.GetRequiredService<IOptions<PlatformOptions>>().Value;
+            client.BaseAddress = new Uri(platformOptions.BaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(10);
+        });
     }
 
     /// <summary>

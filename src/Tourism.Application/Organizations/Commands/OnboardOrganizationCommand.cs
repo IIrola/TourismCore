@@ -31,8 +31,7 @@ public sealed record OnboardOrganizationCommand(
     TourismProfileType ProfileType,
     string CategoryCode,
     string CorrelationId,
-    IReadOnlyList<EvaluationContact> Contacts,
-    IReadOnlyList<AssertedPossession>? AssertedPossession = null) : IRequest<Result<OnboardingResponse>>;
+    IReadOnlyList<EvaluationContact> Contacts) : IRequest<Result<OnboardingResponse>>;
 
 public sealed class OnboardOrganizationCommandHandler(
     ITourismOrganizationProfileRepository profiles,
@@ -117,7 +116,6 @@ public sealed class OnboardOrganizationCommandHandler(
                 request.OrganizationId,
                 request.CorrelationId,
                 request.Contacts,
-                request.AssertedPossession,
                 currentUser.UserId == Guid.Empty ? null : currentUser.UserId),
             cancellationToken);
 

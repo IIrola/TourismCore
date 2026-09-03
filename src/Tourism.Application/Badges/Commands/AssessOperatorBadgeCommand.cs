@@ -17,17 +17,24 @@ namespace Tourism.Application.Badges.Commands;
 /// issued the service token, PIMA states what the evidence supports, and BIT decides what
 /// that means for a listing. Each answers only what it owns.
 /// </summary>
+/// <remarks>
+/// Possession is deliberately absent from this command. It used to be a field the caller
+/// filled in, which meant the heaviest single input to an identity score — thirty per cent of
+/// it — was whatever the caller said about themselves, with nothing in a position to
+/// contradict them. It is now fetched from Platform, which is the only service that can
+/// actually say whether somebody proved control of a contact.
+/// </remarks>
 public sealed record AssessOperatorBadgeCommand(
     Guid TenantId,
     Guid OrganizationId,
     string CorrelationId,
     IReadOnlyList<EvaluationContact> Contacts,
-    IReadOnlyList<AssertedPossession>? AssertedPossession = null,
     Guid? RequestedByUserId = null) : IRequest<Result<BadgeResponse>>;
 
 public sealed class AssessOperatorBadgeCommandHandler(
     ITourismOrganizationProfileRepository profiles,
     IIdentityEvaluationClient identityClient,
+    IPossessionClient possessionClient,
     IUnitOfWork unitOfWork,
     IClock clock,
     ICurrentUser currentUser) : IRequestHandler<AssessOperatorBadgeCommand, Result<BadgeResponse>>
@@ -54,13 +61,23 @@ public sealed class AssessOperatorBadgeCommandHandler(
             return Result<BadgeResponse>.Fail(
                 TourismErrorCodes.Forbidden, "You may not assess a badge for that organization.");
 
+        // Asked, not assumed. If Platform cannot answer, the evaluation goes ahead without
+        // possession: the score then rests on less evidence and says so through its coverage,
+        // which is a truthful outcome. Refusing the whole assessment would let one dependency
+        // being briefly unreachable stop a listing from being assessed at all, and asserting
+        // possession we could not confirm would be worse than either.
+        var possession = await possessionClient.GetConfirmedAsync(request.Contacts, cancellationToken);
+        var proven = possession.IsSuccess
+            ? ToAssertions(possession.Value!)
+            : null;
+
         var evaluation = await identityClient.EvaluateAsync(
             new IdentityEvaluationRequest(
                 request.TenantId,
                 request.OrganizationId,
                 request.CorrelationId,
                 request.Contacts,
-                request.AssertedPossession,
+                proven,
                 RequestedByUserId: request.RequestedByUserId),
             cancellationToken);
 
@@ -87,4 +104,14 @@ public sealed class AssessOperatorBadgeCommandHandler(
 
         return Result<BadgeResponse>.Ok(BadgeResponse.From(profile, decision, outcome));
     }
+
+    /// <summary>
+    /// Turns what Platform vouched for into what the identity engine expects.
+    ///
+    /// One confirmation per contact, because that is what Platform actually knows: it records
+    /// that a contact was proven and when, not how many times somebody re-proved it. Claiming
+    /// more would inflate a dimension that saturates on repeated confirmations.
+    /// </summary>
+    private static IReadOnlyList<AssertedPossession> ToAssertions(IReadOnlyList<ConfirmedContact> confirmed)
+        => [.. confirmed.Select(c => new AssertedPossession(c.Channel, c.Value, 1, c.ConfirmedAtUtc))];
 }
