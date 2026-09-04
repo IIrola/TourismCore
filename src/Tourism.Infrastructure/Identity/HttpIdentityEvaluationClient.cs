@@ -83,7 +83,8 @@ public sealed class HttpIdentityEvaluationClient(
                 : ReportStanding.None;
 
             return Result<IdentityEvaluationOutcome>.Ok(
-                new IdentityEvaluationOutcome(wireResponse.Id, assessment, standing));
+                new IdentityEvaluationOutcome(
+                    wireResponse.Id, assessment, standing, wireResponse.PublicDirectoryId));
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
@@ -143,5 +144,6 @@ public sealed class HttpIdentityEvaluationClient(
     /// guessing at the worst meaning of it would let a future PIMA release silently strip
     /// badges here.
     /// </summary>
-    private sealed record PimaEvaluationResponse(Guid Id, PimaScore Score, int ReportStanding);
+    private sealed record PimaEvaluationResponse(
+        Guid Id, PimaScore Score, int ReportStanding, string? PublicDirectoryId);
 }

@@ -20,4 +20,8 @@ internal static class ColumnLengths
     /// rules ever produce, so a slightly longer future explanation does not need a migration.
     /// </summary>
     public const int BadgeReasons = 2000;
+
+    /// <summary>The identifier PIMA publishes a subject's facts under. Twelve characters of
+    /// Crockford base 32 — a handle, not an address.</summary>
+    public const int PublicDirectoryId = 12;
 }

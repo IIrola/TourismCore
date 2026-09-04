@@ -100,6 +100,13 @@ public sealed class AssessOperatorBadgeCommandHandler(
         var decision = BadgeAssessment.Decide(outcome.Assessment, profile, outcome.ReportStanding, now);
 
         profile.RecordBadge(decision, outcome.EvaluationId, now);
+
+        // The engine hands back the identifier it publishes this subject under, if they have
+        // consented to anything. Recorded here rather than looked up by contact, because
+        // looking up by contact is a different question with a different consent — whether a
+        // stranger holding a contact may confirm whose it is — and this caller already knows
+        // exactly whose subject it asked about.
+        profile.RecordPublicDirectoryId(outcome.PublicDirectoryId);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<BadgeResponse>.Ok(BadgeResponse.From(profile, decision, outcome));

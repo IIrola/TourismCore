@@ -42,6 +42,15 @@ public sealed class TourismOrganizationProfileConfiguration : IEntityTypeConfigu
 
         builder.Property(p => p.LastEvaluationId);
 
+        builder.Property(p => p.PublicDirectoryId)
+            .HasMaxLength(ColumnLengths.PublicDirectoryId);
+
+        // The lookup that serves the public page. Unique because it is what an external link
+        // points at: two operators sharing one would make a link ambiguous.
+        builder.HasIndex(p => p.PublicDirectoryId)
+            .IsUnique()
+            .HasDatabaseName("IX_TourismOrganizationProfiles_PublicDirectoryId");
+
         builder.Property(p => p.BadgeReasons)
             .HasMaxLength(ColumnLengths.BadgeReasons);
     }

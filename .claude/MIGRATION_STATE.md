@@ -110,3 +110,35 @@ El cliente HTTP tiene su propio typed client en vez de compartir el de emisión 
 - `dotnet build Tourism.sln` — correcto, **0 warnings**
 - `dotnet test Tourism.sln` — **93/93 en verde** (28 dominio, 45 aplicación, 20 infraestructura)
 - El mapeo del cable está probado contra el **cuerpo literal que PIMA devuelve**, capturado de una llamada real y no reconstruido desde el DTO: un cuerpo armado con la misma forma que el lector espera no prueba nada sobre el lector.
+
+---
+
+## Iteración 7 — la página pública es de BIT
+
+El legacy servía el perfil público desde el motor de identidad: una respuesta anónima que fusionaba nombre, hechos de riesgo y datos de negocio turístico — razón social, categoría, "proof of life" —, estos últimos viviendo como columnas en el usuario de Platform y en catálogos sembrados solo con rubros de turismo. El motor tenía que saber cómo se ve una ficha turística.
+
+Ahora **PIMA publica hechos y BIT publica la página**. La etiqueta de categoría vive acá, que es donde "Guías de Turistas" corresponde.
+
+### Decisiones
+
+- **Los hechos se piden primero, y la página existe solo si el motor liberó algo.** Un operador que retiró su consentimiento no tiene página, por más que BIT siga teniendo su fila. Ese es el motivo de que el consentimiento se haga cumplir en un lugar en vez de recordarse en tres — y el orden importa: leer primero los registros propios dejaría los datos de un operador retirado a una rama olvidada de publicarse.
+
+- **Un identificador público por identidad, no por vertical.** BIT direcciona su página con el identificador de PIMA en lugar de acuñar uno propio: una persona que aparece en dos verticales tiene una identidad pública, no dos. Lo que BIT posee es la página; de quién es la página lo dice el motor.
+
+- **El enlace se aprende de una evaluación, no se busca por contacto.** La evaluación de insignia devuelve el identificador y el perfil lo guarda. Buscarlo por contacto sería otra pregunta con otro consentimiento — si un desconocido con un contacto puede confirmar de quién es — y quien pide la evaluación ya sabe exactamente sobre quién preguntó.
+
+- **Un motor caído no es una ficha inexistente.** Se distingue de "no listado", igual que en la decisión de insignia: una dependencia caída no es un veredicto sobre el operador.
+
+- **Un sujeto listado por otra vertical no tiene página turística.** Respuesta propia, porque es una situación real y no un error.
+
+- **El lookup anónimo es un POST con el contacto en el cuerpo.** Un contacto es dato personal y no va en una URL, un log de proxy o un historial. Su predecesor era `GET ?contact=` — y además creaba perfiles de identidad y mandaba correos de activación.
+
+- **Toda respuesta negativa del lookup tiene la misma forma.** Nadie tiene ese contacto, no está listado, no es encontrable, o ese contacto en particular está retirado: cualquier distinción sería una manera de confirmar de quién es un contacto.
+
+## Verificación — Iteración 7
+
+- `dotnet build Tourism.sln` — correcto, **0 warnings**
+- `dotnet test Tourism.sln` — **101/101 en verde** (28 dominio, 53 aplicación, 20 infraestructura)
+- **Verificado end-to-end contra MariaDB 11.4** con los tres servicios sobre HTTP: la página anónima compone lo turístico (`lodging → Lodging and accommodation`, insignia) con los hechos que PIMA liberó — score y denuncias ausentes cuando el operador no los publicó, correo enmascarado; el lookup anónimo encuentra al encontrable y da 404 al desconocido; y cuando **el operador retira su consentimiento en PIMA, la página y el lookup dan 404** aunque BIT siga teniendo su fila.
+
+**Limitación declarada**: el enlace entre la ficha y el identificador se sembró por SQL para la corrida en vivo. Lo graba la evaluación de insignia, que está cubierta por prueba unitaria pero no se ejerció acá — habría requerido rehacer el onboarding turístico completo con token de participación.

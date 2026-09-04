@@ -5,8 +5,10 @@ using Microsoft.Extensions.Options;
 using Tourism.Application.Common.Ports;
 using Tourism.Application.Identity.Ports;
 using Tourism.Application.Organizations.Ports;
+using Tourism.Application.PublicDirectory.Ports;
 using Tourism.Infrastructure.Common;
 using Tourism.Infrastructure.Identity;
+using Tourism.Infrastructure.PublicDirectory;
 using Tourism.Infrastructure.Persistence;
 using Tourism.Infrastructure.Persistence.Repositories;
 using Tourism.Infrastructure.Security;
@@ -126,6 +128,16 @@ public static class DependencyInjection
             .ValidateOnStart();
 
         services.AddHttpClient<IIdentityEvaluationClient, HttpIdentityEvaluationClient>((sp, client) =>
+        {
+            var pimaOptions = sp.GetRequiredService<IOptions<PimaOptions>>().Value;
+            client.BaseAddress = new Uri(pimaOptions.BaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(pimaOptions.TimeoutSeconds);
+        });
+
+        // Same service, same credentials, same options — a second typed client rather than a
+        // second configuration section. Giving the directory its own would mean two token
+        // caches for one audience.
+        services.AddHttpClient<IPublicDirectoryClient, HttpPublicDirectoryClient>((sp, client) =>
         {
             var pimaOptions = sp.GetRequiredService<IOptions<PimaOptions>>().Value;
             client.BaseAddress = new Uri(pimaOptions.BaseUrl);

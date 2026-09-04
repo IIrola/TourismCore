@@ -63,6 +63,18 @@ public sealed class TourismOrganizationProfile
     public Guid? LastEvaluationId { get; private set; }
 
     /// <summary>
+    /// The identifier PIMA publishes this operator's identity facts under, once it has one.
+    ///
+    /// Learned from an assessment rather than minted here, and that direction matters: one
+    /// person appearing in two verticals has one public identity, not one per vertical. What
+    /// BIT owns is the tourism page; who the page is about is the engine's identifier.
+    ///
+    /// Null until the operator has consented to publishing anything, which is also what makes
+    /// the public page unavailable — the operator never asked for one.
+    /// </summary>
+    public string? PublicDirectoryId { get; private set; }
+
+    /// <summary>
     /// Why the current badge is what it is, stored alongside it.
     ///
     /// A badge kept without its reasons cannot answer the one question an operator will
@@ -108,6 +120,16 @@ public sealed class TourismOrganizationProfile
     /// Stores the outcome of a badge assessment, so the directory can render a listing
     /// without asking the identity engine on every page view.
     /// </summary>
+    /// <summary>
+    /// Records the identifier PIMA publishes this operator under.
+    ///
+    /// Overwritten rather than fixed, because PIMA is the authority on it and an operator who
+    /// withdraws and later publishes again keeps the same one — so a change here means the
+    /// engine changed its answer, not that this profile drifted.
+    /// </summary>
+    public void RecordPublicDirectoryId(string? publicDirectoryId)
+        => PublicDirectoryId = string.IsNullOrWhiteSpace(publicDirectoryId) ? null : publicDirectoryId.Trim();
+
     public void RecordBadge(BadgeDecision decision, Guid evaluationId, DateTime nowUtc)
     {
         ArgumentNullException.ThrowIfNull(decision);

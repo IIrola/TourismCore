@@ -28,8 +28,14 @@ public sealed record IdentityEvaluationRequest(
 /// as PIMA saw them when the evaluation closed. It arrives beside the score and never inside
 /// it: what an unresolved or upheld accusation should cost a tourism listing is BIT's
 /// judgement, and it can only make that judgement if the two are told apart.</param>
+/// <param name="PublicDirectoryId">The identifier the engine publishes this subject's facts
+/// under, when they have consented to anything. Null otherwise — which is also what leaves an
+/// operator without a public page: they never asked for one.</param>
 public sealed record IdentityEvaluationOutcome(
-    Guid EvaluationId, IdentityAssessment Assessment, ReportStanding ReportStanding);
+    Guid EvaluationId,
+    IdentityAssessment Assessment,
+    ReportStanding ReportStanding,
+    string? PublicDirectoryId = null);
 
 /// <summary>
 /// BIT's view of the identity engine.
