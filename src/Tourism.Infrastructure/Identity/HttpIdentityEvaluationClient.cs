@@ -78,8 +78,12 @@ public sealed class HttpIdentityEvaluationClient(
             var assessment = new IdentityAssessment(
                 wireResponse.Score.Value, wireResponse.Score.Coverage, clock.UtcNow);
 
+            var standing = Enum.IsDefined(typeof(ReportStanding), wireResponse.ReportStanding)
+                ? (ReportStanding)wireResponse.ReportStanding
+                : ReportStanding.None;
+
             return Result<IdentityEvaluationOutcome>.Ok(
-                new IdentityEvaluationOutcome(wireResponse.Id, assessment));
+                new IdentityEvaluationOutcome(wireResponse.Id, assessment, standing));
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
@@ -130,5 +134,14 @@ public sealed class HttpIdentityEvaluationClient(
 
     private sealed record PimaScore(int? Value, decimal Coverage);
 
-    private sealed record PimaEvaluationResponse(Guid Id, PimaScore Score);
+    /// <summary>
+    /// PIMA's answer, in the fields BIT reads.
+    ///
+    /// <c>reportStanding</c> is an int on the wire, mapped onto BIT's own enum below rather
+    /// than shared as a type. An unknown value is read as "nothing stands" — a number this
+    /// version does not recognise cannot be turned into a claim against an operator, and
+    /// guessing at the worst meaning of it would let a future PIMA release silently strip
+    /// badges here.
+    /// </summary>
+    private sealed record PimaEvaluationResponse(Guid Id, PimaScore Score, int ReportStanding);
 }

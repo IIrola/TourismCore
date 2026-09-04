@@ -29,8 +29,13 @@ public class BadgeAssessmentTests
     private static IdentityAssessment Assessment(int? score, decimal coverage = 1m)
         => new(score, coverage, Now);
 
-    private static BadgeDecision Decide(int? score, decimal coverage = 1m, DateTime? proofOfLife = null)
-        => BadgeAssessment.Decide(Assessment(score, coverage), Operator(proofOfLife ?? Now.AddDays(-30)), Now);
+    private static BadgeDecision Decide(
+        int? score,
+        decimal coverage = 1m,
+        DateTime? proofOfLife = null,
+        ReportStanding standing = ReportStanding.None)
+        => BadgeAssessment.Decide(
+            Assessment(score, coverage), Operator(proofOfLife ?? Now.AddDays(-30)), standing, Now);
 
     // ---------- the distinction the legacy could not make ----------
 
@@ -110,7 +115,7 @@ public class BadgeAssessmentTests
     [Fact]
     public void An_operator_who_has_never_traded_is_held_at_Bronze()
     {
-        var decision = BadgeAssessment.Decide(Assessment(900), Operator(lastProofOfLife: null), Now);
+        var decision = BadgeAssessment.Decide(Assessment(900), Operator(lastProofOfLife: null), ReportStanding.None, Now);
 
         decision.Badge.Should().Be(TourismBadge.Bronze);
         decision.Reasons.Should().Contain(r => r.Contains("never shown signs of trading"));
@@ -138,7 +143,7 @@ public class BadgeAssessmentTests
     public void Proof_of_life_does_not_hold_back_a_badge_already_at_Bronze()
     {
         // There is nothing left to hold back, and saying so would only add noise.
-        var decision = BadgeAssessment.Decide(Assessment(450), Operator(lastProofOfLife: null), Now);
+        var decision = BadgeAssessment.Decide(Assessment(450), Operator(lastProofOfLife: null), ReportStanding.None, Now);
 
         decision.Badge.Should().Be(TourismBadge.Bronze);
         decision.Reasons.Should().NotContain(r => r.Contains("trading"));
@@ -171,7 +176,48 @@ public class BadgeAssessmentTests
     {
         // Platinum was the legacy's plan-gated tier. Whether a commercial tier may raise a
         // badge is still an open business decision, so nothing here awards it.
-        BadgeAssessment.Decide(Assessment(1000, 1m), Operator(Now), Now)
+        BadgeAssessment.Decide(Assessment(1000, 1m), Operator(Now), ReportStanding.None, Now)
             .Badge.Should().Be(TourismBadge.Gold);
+    }
+
+    // ---------- incident reports ----------
+
+    [Fact]
+    public void An_upheld_report_leaves_an_operator_with_no_badge_whatever_they_scored()
+    {
+        var decision = Decide(1000, coverage: 1m, standing: ReportStanding.Upheld);
+
+        decision.Badge.Should().Be(TourismBadge.None);
+        decision.Reasons.Should().Contain(r => r.Contains("upheld incident report"));
+    }
+
+    [Fact]
+    public void An_unreviewed_report_holds_the_top_badge_back_without_taking_one_away()
+    {
+        // A claim nobody has decided is grounds not to make the strongest public statement
+        // yet — not grounds to strip a badge. The legacy did the opposite: an unreviewed
+        // report zeroed the score platform-wide the moment it was filed, so anyone with a
+        // reporting account could cost a competitor their standing.
+        var decision = Decide(1000, coverage: 1m, standing: ReportStanding.UnderReview);
+
+        decision.Badge.Should().Be(TourismBadge.Silver);
+        decision.Reasons.Should().Contain(r => r.Contains("awaiting review"));
+    }
+
+    [Fact]
+    public void An_unreviewed_report_does_not_disturb_a_badge_below_the_top()
+    {
+        var decision = Decide(650, coverage: 1m, standing: ReportStanding.UnderReview);
+
+        decision.Badge.Should().Be(TourismBadge.Silver);
+        decision.Reasons.Should().NotContain(r => r.Contains("awaiting review"));
+    }
+
+    [Fact]
+    public void An_upheld_report_is_decided_before_the_score_is_even_read()
+    {
+        // Including when the evaluation was inconclusive: the report is a fact about conduct,
+        // and it does not need the identity evidence to say anything.
+        Decide(null, standing: ReportStanding.Upheld).Badge.Should().Be(TourismBadge.None);
     }
 }

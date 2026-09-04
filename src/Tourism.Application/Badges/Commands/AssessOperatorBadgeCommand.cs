@@ -97,7 +97,7 @@ public sealed class AssessOperatorBadgeCommandHandler(
 
         var outcome = evaluation.Value!;
         var now = clock.UtcNow;
-        var decision = BadgeAssessment.Decide(outcome.Assessment, profile, now);
+        var decision = BadgeAssessment.Decide(outcome.Assessment, profile, outcome.ReportStanding, now);
 
         profile.RecordBadge(decision, outcome.EvaluationId, now);
         await unitOfWork.SaveChangesAsync(cancellationToken);

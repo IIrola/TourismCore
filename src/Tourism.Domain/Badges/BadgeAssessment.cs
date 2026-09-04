@@ -40,15 +40,36 @@ public static class BadgeAssessment
     /// </summary>
     public static readonly TimeSpan ProofOfLifeWindow = TimeSpan.FromDays(365);
 
+    /// <summary>
+    /// Decides the badge.
+    ///
+    /// <paramref name="reportStanding"/> has no default. Passing it is not optional, and that
+    /// is the point: a vertical that forgets to look at whether an operator has an upheld
+    /// incident report against them would publish a badge on identity evidence alone. Making
+    /// it a required parameter means such a caller does not compile.
+    /// </summary>
     public static BadgeDecision Decide(
         IdentityAssessment assessment,
         TourismOrganizationProfile profile,
+        ReportStanding reportStanding,
         DateTime nowUtc)
     {
         ArgumentNullException.ThrowIfNull(assessment);
         ArgumentNullException.ThrowIfNull(profile);
 
         var reasons = new List<string>();
+
+        // An upheld report ends the question before the score is even read. Deliberately
+        // unlike the legacy, which did this inside the scoring engine, platform-wide, for
+        // reports nobody had reviewed — so an accusation filed that morning was
+        // indistinguishable from a proven one, and every vertical inherited the verdict
+        // whether it agreed or not. Here it is tourism's own rule, applied only to what a
+        // reviewer upheld, and another vertical is free to weigh the same fact differently.
+        if (reportStanding == ReportStanding.Upheld)
+        {
+            reasons.Add("An upheld incident report stands against this operator.");
+            return new BadgeDecision(TourismBadge.None, reasons);
+        }
 
         // Nothing conclusive means no claim, not the worst claim. Publishing an unchecked
         // operator as a failed one would be a statement the evidence does not support.
@@ -66,6 +87,7 @@ public static class BadgeAssessment
 
         badge = CapByCoverage(badge, assessment.Coverage, reasons);
         badge = CapByProofOfLife(badge, profile, nowUtc, reasons);
+        badge = CapByOpenReport(badge, reportStanding, reasons);
 
         return new BadgeDecision(badge, reasons);
     }
@@ -113,6 +135,25 @@ public static class BadgeAssessment
         }
 
         return badge;
+    }
+
+    /// <summary>
+    /// Holds back the top badge while an accusation is unresolved.
+    ///
+    /// A claim nobody has decided is not grounds to strip an operator's badge — it is grounds
+    /// not to make the strongest public statement about them yet. Silver, not Bronze and not
+    /// None: the alternative would let anyone with a reporting account cost a competitor
+    /// their standing by filing something, which is precisely what the legacy allowed, and
+    /// there it took effect immediately and platform-wide.
+    /// </summary>
+    private static TourismBadge CapByOpenReport(
+        TourismBadge badge, ReportStanding standing, List<string> reasons)
+    {
+        if (standing != ReportStanding.UnderReview || badge < TourismBadge.Gold)
+            return badge;
+
+        reasons.Add("Held at Silver: an incident report against this operator is awaiting review.");
+        return TourismBadge.Silver;
     }
 
     private static TourismBadge CapByProofOfLife(

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
+using Tourism.Domain.Badges;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
@@ -166,5 +167,80 @@ public sealed class HttpIdentityEvaluationClientTests
         // EvaluationChannel.Phone = 1, serialized as a bare number, matching PIMA's own
         // ContactChannel enum (Email = 0, Phone = 1) — never as the string "Phone".
         body.Should().Contain("\"channel\":1");
+    }
+
+    [Fact]
+    public async Task The_report_standing_is_read_out_of_a_real_PIMA_response_body()
+    {
+        // The literal body PIMA returns, captured from a live call rather than reconstructed
+        // from the DTO — the point of this test is the wire, and a body built from the same
+        // shape the reader expects proves nothing about it.
+        const string body = """
+        {
+          "id": "6d3f3ad0-8f96-4a6b-9d7c-6b18a2b1cfd1",
+          "subjectId": "3a2a3d54-2f43-4b9a-9a1f-92a35e4a1cd9",
+          "status": 1,
+          "scoringProfileCode": "identity-v1",
+          "requestedAtUtc": "2026-09-04T03:16:02.1Z",
+          "closedAtUtc": "2026-09-04T03:16:02.2Z",
+          "failureReason": null,
+          "score": { "value": null, "riskLevel": null, "coverage": 0, "profileCode": "identity-v1" },
+          "reportStanding": 2,
+          "evidence": [],
+          "findings": [
+            { "id": "0f2a1a1e-9f5f-4a2a-8b1a-4c3f5f8d9e10", "code": "report.upheld",
+              "detail": "account-impersonation", "dimension": null, "value": null, "evidenceId": null }
+          ]
+        }
+        """;
+
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json")
+        });
+
+        var result = await CreateClient(handler).EvaluateAsync(AnyRequest());
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.ReportStanding.Should().Be(ReportStanding.Upheld);
+
+        // Beside the score, which stayed inconclusive. Both facts survive the wire, and BIT
+        // needs both to decide: an upheld report is not a low score, and a low score is not
+        // an accusation.
+        result.Value.Assessment.IsConclusive.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task A_standing_this_version_does_not_recognise_is_read_as_nothing_standing()
+    {
+        // A number a future PIMA release invents must not be turned into a claim against an
+        // operator. Guessing at the worst meaning of it would let that release silently strip
+        // badges here.
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = JsonContent.Create(new
+            {
+                id = Guid.NewGuid(),
+                score = new { value = (int?)900, coverage = 1m },
+                reportStanding = 99
+            })
+        });
+
+        var result = await CreateClient(handler).EvaluateAsync(AnyRequest());
+
+        result.Value!.ReportStanding.Should().Be(ReportStanding.None);
+    }
+
+    [Fact]
+    public async Task A_response_with_no_standing_at_all_reads_as_nothing_standing()
+    {
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = JsonContent.Create(new { id = Guid.NewGuid(), score = new { value = (int?)900, coverage = 1m } })
+        });
+
+        var result = await CreateClient(handler).EvaluateAsync(AnyRequest());
+
+        result.Value!.ReportStanding.Should().Be(ReportStanding.None);
     }
 }

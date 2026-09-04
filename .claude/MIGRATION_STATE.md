@@ -94,3 +94,19 @@ El cliente HTTP tiene su propio typed client en vez de compartir el de emisión 
 - `dotnet build Tourism.sln` — correcto, **0 warnings**
 - `dotnet test Tourism.sln` — **84/84 en verde** (24 dominio, 43 aplicación, 17 infraestructura)
 - El lado emisor del contrato quedó verificado sobre HTTP real en Platform: un token de servicio con la audiencia de Platform recibe los hechos avalados, uno con la audiencia de PIMA recibe 401, y un token de usuario también. El lado de BIT está cubierto por pruebas sobre el puerto, no por una corrida de los tres servicios en esta iteración.
+
+---
+
+## Iteración 5 — la insignia tiene que mirar las denuncias
+
+`BadgeAssessment.Decide` toma `ReportStanding` como **parámetro obligatorio, sin valor por defecto**. Una vertical que se olvide de mirar si hay una denuncia sostenida contra un operador publicaría una insignia sobre evidencia de identidad sola — y con un parámetro obligatorio, no compila.
+
+- **Una denuncia sostenida deja al operador sin insignia**, cualquiera sea su score, y se decide antes de leerlo. Deliberadamente distinto del legacy, que hacía esto *dentro del motor de scoring*, para toda la plataforma, y con denuncias que nadie había revisado: una acusación de esa mañana era indistinguible de una probada, y toda vertical heredaba el veredicto estuviera o no de acuerdo. Acá es una regla de turismo, aplicada solo a lo que un revisor sostuvo, y otra vertical puede pesar el mismo hecho distinto.
+- **Una denuncia sin revisar retiene el Oro en Plata, sin quitar nada.** Un reclamo que nadie decidió es razón para no hacer todavía la afirmación pública más fuerte, no para quitar una insignia. Si no, cualquiera con cuenta de reporte le costaría a un competidor su posición presentando algo — que es exactamente lo que el legacy permitía, de inmediato y en toda la plataforma.
+- **Un valor de standing que esta versión no reconoce se lee como "nada se sostiene".** Un número que una futura versión de PIMA invente no puede convertirse en una acusación contra un operador, y adivinar su peor significado dejaría que esa versión quitara insignias en silencio.
+
+## Verificación — Iteración 5
+
+- `dotnet build Tourism.sln` — correcto, **0 warnings**
+- `dotnet test Tourism.sln` — **93/93 en verde** (28 dominio, 45 aplicación, 20 infraestructura)
+- El mapeo del cable está probado contra el **cuerpo literal que PIMA devuelve**, capturado de una llamada real y no reconstruido desde el DTO: un cuerpo armado con la misma forma que el lector espera no prueba nada sobre el lector.

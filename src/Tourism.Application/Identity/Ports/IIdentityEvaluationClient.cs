@@ -24,7 +24,12 @@ public sealed record IdentityEvaluationRequest(
     Guid? BusinessLineId = null,
     Guid? RequestedByUserId = null);
 
-public sealed record IdentityEvaluationOutcome(Guid EvaluationId, IdentityAssessment Assessment);
+/// <param name="ReportStanding">What the incident reports against these contacts amount to,
+/// as PIMA saw them when the evaluation closed. It arrives beside the score and never inside
+/// it: what an unresolved or upheld accusation should cost a tourism listing is BIT's
+/// judgement, and it can only make that judgement if the two are told apart.</param>
+public sealed record IdentityEvaluationOutcome(
+    Guid EvaluationId, IdentityAssessment Assessment, ReportStanding ReportStanding);
 
 /// <summary>
 /// BIT's view of the identity engine.

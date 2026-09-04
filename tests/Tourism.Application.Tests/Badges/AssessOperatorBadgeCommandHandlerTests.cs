@@ -63,10 +63,12 @@ public class AssessOperatorBadgeCommandHandlerTests
         return profile;
     }
 
-    private void GivenIdentityAnswers(int? score, decimal coverage = 1m)
+    private void GivenIdentityAnswers(
+        int? score, decimal coverage = 1m, ReportStanding standing = ReportStanding.None)
         => _identity.EvaluateAsync(Arg.Any<IdentityEvaluationRequest>(), Arg.Any<CancellationToken>())
             .Returns(Result<IdentityEvaluationOutcome>.Ok(
-                new IdentityEvaluationOutcome(Guid.NewGuid(), new IdentityAssessment(score, coverage, Now))));
+                new IdentityEvaluationOutcome(
+                    Guid.NewGuid(), new IdentityAssessment(score, coverage, Now), standing)));
 
     private AssessOperatorBadgeCommand Command()
         => new(_tenantId, _organizationId, "trace-badge-1",
@@ -322,5 +324,31 @@ public class AssessOperatorBadgeCommandHandlerTests
         await Handler().Handle(Command(), CancellationToken.None);
 
         _currentUser.Received().CanActOnOrganization(profile.OrganizationId, profile.TenantId);
+    }
+
+    [Fact]
+    public async Task An_upheld_report_reaching_BIT_from_PIMA_costs_the_operator_their_badge()
+    {
+        // The whole chain: PIMA publishes the standing beside the score, BIT reads it, and
+        // BIT's own rule decides what it means. In the legacy the engine had already decided
+        // for every vertical, by overwriting the score with zero.
+        GivenRegisteredOperator();
+        GivenIdentityAnswers(950, standing: ReportStanding.Upheld);
+
+        var result = await Handler().Handle(Command(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Badge.Should().Be(TourismBadge.None);
+    }
+
+    [Fact]
+    public async Task An_unreviewed_report_holds_the_top_badge_back()
+    {
+        GivenRegisteredOperator();
+        GivenIdentityAnswers(950, standing: ReportStanding.UnderReview);
+
+        var result = await Handler().Handle(Command(), CancellationToken.None);
+
+        result.Value!.Badge.Should().Be(TourismBadge.Silver);
     }
 }
