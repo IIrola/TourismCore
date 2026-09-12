@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
@@ -10,7 +11,20 @@ using Tourism.Infrastructure.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    // Enums travel by name, not by ordinal.
+    //
+    // Without this they serialise as numbers, and a number says nothing about itself: a public
+    // directory page receiving `badge: 3` has to map 3 to "Gold" by position, which is a
+    // hand-maintained list — and inserting a badge in the middle of the enum silently relabels
+    // everything already published. `TourismBadge.Undetermined` is -1, which is worse still for
+    // any client that treats the value as an index.
+    //
+    // Scoped to what this API answers. The outbound clients to PIMA and Platform build their own
+    // JsonSerializerOptions, so the wire between services is untouched by this.
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
