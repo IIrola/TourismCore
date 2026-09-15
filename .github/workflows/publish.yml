@@ -1,6 +1,6 @@
 # Publicar la imagen de este repo.
 #
-# Todo el trabajo esta en el workflow reutilizable que vive en bit-deploy: el dia que cambie como
+# Todo el trabajo esta en el workflow reutilizable que vive en el repo deploy: el dia que cambie como
 # se construye una imagen, se corrige en un lugar y no en tres.
 
 name: publish
@@ -12,7 +12,7 @@ on:
 
 jobs:
   image:
-    uses: IIrola/bit-deploy/.github/workflows/dotnet-image.yml@main
+    uses: IIrola/deploy/.github/workflows/dotnet-image.yml@main
     with:
       solution: Tourism.sln
       image: tourismcore
