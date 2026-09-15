@@ -1,0 +1,23 @@
+# Lo que no tiene por que entrar al contexto de build. Sin esto el contexto lleva cada bin/ y
+# obj/ de la solucion, que ademas contaminan el restore de la imagen con artefactos de Windows.
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/node_modules/
+
+.git/
+.gitignore
+.gitattributes
+
+# El tablero y el analisis son documentacion del proyecto, no insumo de la imagen.
+.claude/
+
+# Nunca: los overrides locales pueden tener rutas y valores de la maquina de quien construye.
+**/appsettings.Development.json
+**/appsettings.Local.json
+**/*.user
+
+Dockerfile
+.dockerignore
+README.md

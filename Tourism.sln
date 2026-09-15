@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tourism.Application.Tests",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tourism.Infrastructure.Tests", "tests\Tourism.Infrastructure.Tests\Tourism.Infrastructure.Tests.csproj", "{58EDF1EA-53EE-4E2F-81E9-87EBC66F4F1E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tourism.Migrator", "src\Tourism.Migrator\Tourism.Migrator.csproj", "{994E0077-D9DB-41AF-99EC-183E14DDA8C9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -115,6 +117,18 @@ Global
 		{58EDF1EA-53EE-4E2F-81E9-87EBC66F4F1E}.Release|x64.Build.0 = Release|Any CPU
 		{58EDF1EA-53EE-4E2F-81E9-87EBC66F4F1E}.Release|x86.ActiveCfg = Release|Any CPU
 		{58EDF1EA-53EE-4E2F-81E9-87EBC66F4F1E}.Release|x86.Build.0 = Release|Any CPU
+		{994E0077-D9DB-41AF-99EC-183E14DDA8C9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{994E0077-D9DB-41AF-99EC-183E14DDA8C9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{994E0077-D9DB-41AF-99EC-183E14DDA8C9}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{994E0077-D9DB-41AF-99EC-183E14DDA8C9}.Debug|x64.Build.0 = Debug|Any CPU
+		{994E0077-D9DB-41AF-99EC-183E14DDA8C9}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{994E0077-D9DB-41AF-99EC-183E14DDA8C9}.Debug|x86.Build.0 = Debug|Any CPU
+		{994E0077-D9DB-41AF-99EC-183E14DDA8C9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{994E0077-D9DB-41AF-99EC-183E14DDA8C9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{994E0077-D9DB-41AF-99EC-183E14DDA8C9}.Release|x64.ActiveCfg = Release|Any CPU
+		{994E0077-D9DB-41AF-99EC-183E14DDA8C9}.Release|x64.Build.0 = Release|Any CPU
+		{994E0077-D9DB-41AF-99EC-183E14DDA8C9}.Release|x86.ActiveCfg = Release|Any CPU
+		{994E0077-D9DB-41AF-99EC-183E14DDA8C9}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -127,5 +141,6 @@ Global
 		{A209E6B6-FC16-4094-893F-35CC45BA2216} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{743C6F7F-1039-4EF1-8A7B-6C54F7B1E3E7} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{58EDF1EA-53EE-4E2F-81E9-87EBC66F4F1E} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{994E0077-D9DB-41AF-99EC-183E14DDA8C9} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

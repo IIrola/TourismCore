@@ -20,13 +20,6 @@ public static class DependencyInjection
 {
     private const string ConnectionStringName = "DefaultConnection";
 
-    /// <summary>
-    /// Pinned instead of <c>ServerVersion.AutoDetect</c>: auto-detection opens a connection
-    /// while the service collection is being built, which would make startup and
-    /// design-time tooling (migrations) depend on a reachable database. Same version
-    /// Platform and PIMA pin to.
-    /// </summary>
-    private static readonly MariaDbServerVersion ServerVersion = new(new Version(11, 4, 0));
 
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
@@ -41,7 +34,7 @@ public static class DependencyInjection
         }
 
         services.AddDbContext<TourismDbContext>(options =>
-            options.UseMySql(connectionString, ServerVersion));
+            options.UseMySql(connectionString, DatabaseServer.Version));
 
         services.AddSingleton<IClock, SystemClock>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
